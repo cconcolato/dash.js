@@ -42,10 +42,12 @@ function IsoFile() {
         emsgProps,
         mdhdProps,
         mfhdProps,
+        tkhdProps,
         tfhdProps,
         tfdtProps,
         trunProps,
-        trunSampleProps;
+        trunSampleProps,
+        prftProps;
 
     /**
     * @param {string} type
@@ -146,6 +148,10 @@ function IsoFile() {
             sequence_number: 'sequence_number'
         };
 
+        tkhdProps = {
+            track_ID: 'track_ID'
+        };
+
         tfhdProps = {
             base_data_offset: 'base_data_offset',
             sample_description_index: 'sample_description_index',
@@ -173,6 +179,13 @@ function IsoFile() {
             sample_size: 'sample_size',
             sample_duration: 'sample_duration',
             sample_composition_time_offset: 'sample_composition_time_offset'
+        };
+
+        prftProps = {
+            reference_track_ID: 'reference_track_ID',
+            ntp_timestamp_sec: 'ntp_timestamp_sec',
+            ntp_timestamp_frac: 'ntp_timestamp_frac',
+            media_time: 'media_time'
         };
     }
 
@@ -213,8 +226,14 @@ function IsoFile() {
             case 'mfhd':
                 copyProps(boxData, box, mfhdProps);
                 break;
+            case 'prft':
+                copyProps(boxData, box, prftProps);
+                break;
             case 'tfhd':
                 copyProps(boxData, box, tfhdProps);
+                break;
+            case 'tkhd':
+                copyProps(boxData, box, tkhdProps);
                 break;
             case 'tfdt':
                 copyProps(boxData, box, tfdtProps);

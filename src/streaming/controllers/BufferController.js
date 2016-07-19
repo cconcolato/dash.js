@@ -201,7 +201,6 @@ function BufferController(config) {
             events = handleInbandEvents(bytes, request, eventStreamMedia, eventStreamTrack);
             streamProcessor.getEventController().addInbandEvents(events);
         }
-
         chunk.bytes = deleteInbandEvents(bytes);
 
         virtualBuffer.append(chunk);
@@ -408,7 +407,6 @@ function BufferController(config) {
         eventBus.trigger(eventType, {mediaType: type});
         log(state === BUFFER_LOADED ? ('Got enough buffer to start.') : ('Waiting for more buffer before starting playback.'));
     }
-
 
     function handleInbandEvents(data, request, mediaInbandEvents, trackInbandEvents) {
         var fragmentStarttime = Math.max(isNaN(request.startTime) ? 0 : request.startTime, 0);

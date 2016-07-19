@@ -34,6 +34,7 @@ import EventBus from './../../core/EventBus';
 import Events from './../../core/events/Events';
 import FactoryMaker from '../../core/FactoryMaker';
 import Debug from '../../core/Debug';
+import BoxParser from '../utils/BoxParser';
 
 const TIME_SYNC_FAILED_ERROR_CODE = 1;
 const HTTP_TIMEOUT_MS = 5000;
@@ -81,13 +82,16 @@ function TimeSyncController() {
 
             // not clear how this would be supported in javascript (in browser)
             'urn:mpeg:dash:utc:ntp:2014':           notSupportedHandler,
-            'urn:mpeg:dash:utc:sntp:2014':          notSupportedHandler
+            'urn:mpeg:dash:utc:sntp:2014':          notSupportedHandler,
+            'urn:mpeg:dash:prft:2014':              prftHandler
         };
 
         if (!getIsSynchronizing()) {
             attemptSync(timingSources);
             setIsInitialised(true);
         }
+
+        eventBus.on(Events.MEDIA_FRAGMENT_LOADED, onMediaFragmentLoaded, this);
     }
 
     function setConfig(config) {
@@ -124,6 +128,24 @@ function TimeSyncController() {
 
     function getOffsetMs() {
         return offsetToDeviceTimeMs;
+    }
+
+    function onMediaFragmentLoaded(e) {
+        // Don't know if this code is needed and how to get a streamProcessor
+        //if (e.fragmentModel !== streamProcessor.getFragmentModel()) return;
+
+        var chunk = e.chunk;
+        var bytes = chunk.bytes;
+        var isoFile = BoxParser(context).getInstance().parse(bytes);
+        var prftBoxes = isoFile.getBoxes('prft');
+
+        if (prftBoxes.length > 0) {
+            attemptSync([{
+                schemeIdUri: 'urn:mpeg:dash:prft:2014',
+                value: prftBoxes[0]
+            }]);
+        }
+
     }
 
     // takes xsdatetime and returns milliseconds since UNIX epoch
@@ -187,6 +209,22 @@ function TimeSyncController() {
     }
 
     function notSupportedHandler(url, onSuccessCB, onFailureCB) {
+        onFailureCB();
+    }
+
+    function prftHandler(prft, onSuccessCB, onFailureCB) {
+        var metric = dashMetrics.getCurrentDVRInfo(metricsModel.getReadOnlyMetricsFor('video') || metricsModel.getReadOnlyMetricsFor('audio'));
+
+        if (metric) {
+            // converting the NTP time (epoch 1/1/1900) into a Date-compatible time (epoch 1/1/1970) and to milliseconds
+            var receivedServerTimeUTC = (new Date(prft.ntp_timestamp_sec * 1000 + (new Date('1/1/1900')).getTime() - (new Date('1/1/1970')).getTime())).getTime();
+            var delay = (new Date()).getTime() - receivedServerTimeUTC;
+            delay = Math.trunc(delay) / 1000;
+            log('prft: NTP', prft.ntp_timestamp_sec, prft.ntp_timestamp_frac, 'at media time:', prft.media_time, 'delay (s):', delay);
+            onSuccessCB(receivedServerTimeUTC);
+            return;
+        }
+
         onFailureCB();
     }
 
